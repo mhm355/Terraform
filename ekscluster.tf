@@ -34,6 +34,9 @@ resource "aws_eks_node_group" "blogging_nodegroup" {
     aws_subnet.private_2.id,
   ]
 
+  instance_types = var.instance_types
+ 
+
   scaling_config {
     desired_size = var.node_group_desired_size
     max_size     = var.node_group_max_size
