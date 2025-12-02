@@ -1,5 +1,8 @@
+# -------------------------------------------------------
+# IAM ROLE FOR EKS CONTROL PLANE
+# -------------------------------------------------------
 resource "aws_iam_role" "eks_cluster" {
-  name = "eks-cluster"
+  name = "${var.ENVIRONMENT}-eks-cluster-role"
 
   assume_role_policy = <<POLICY
 {
@@ -15,6 +18,10 @@ resource "aws_iam_role" "eks_cluster" {
   ]
 }
 POLICY
+
+  tags = {
+    Name = "${var.ENVIRONMENT}-eks-cluster-role"
+  }
 }
 
 resource "aws_iam_role_policy_attachment" "AmazonEKSClusterPolicy" {
@@ -27,8 +34,11 @@ resource "aws_iam_role_policy_attachment" "AmazonEKSServicePolicy" {
   role       = aws_iam_role.eks_cluster.name
 }
 
+# -------------------------------------------------------
+# IAM ROLE FOR EKS NODE GROUPS (EC2 WORKER NODES)
+# -------------------------------------------------------
 resource "aws_iam_role" "eks_nodes" {
-  name = "eks-node-group-levelup"
+  name = "${var.ENVIRONMENT}-eks-nodegroup-role"
 
   assume_role_policy = <<POLICY
 {
@@ -44,6 +54,10 @@ resource "aws_iam_role" "eks_nodes" {
   ]
 }
 POLICY
+
+  tags = {
+    Name = "${var.ENVIRONMENT}-eks-nodegroup-role"
+  }
 }
 
 resource "aws_iam_role_policy_attachment" "AmazonEKSWorkerNodePolicy" {
