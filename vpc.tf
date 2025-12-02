@@ -1,182 +1,111 @@
-provider "aws" {
-  region = var.AWS_REGION
-}
-
 data "aws_availability_zones" "available" {
   state = "available"
 }
 
-# -------------------------
-# VPC
-# -------------------------
 resource "aws_vpc" "blogging_vpc" {
-  cidr_block           = var.BLOGGING_VPC_CIDR_BLOCK
+  cidr_block           = var.blogging_vpc_cidr_block
   enable_dns_support   = true
   enable_dns_hostnames = true
 
   tags = {
-    Name = "${var.ENVIRONMENT}-vpc"
+    Name = "${var.environment}-blogging-vpc"
   }
 }
 
-# -------------------------
-# PUBLIC SUBNETS
-# -------------------------
-
-resource "aws_subnet" "blogging_vpc_public_subnet_1" {
+resource "aws_subnet" "public_1" {
   vpc_id                  = aws_vpc.blogging_vpc.id
-  cidr_block              = var.BLOGGING_VPC_PUBLIC_SUBNET1_CIDR_BLOCK
+  cidr_block              = var.blogging_vpc_public_subnet1_cidr_block
   availability_zone       = data.aws_availability_zones.available.names[0]
   map_public_ip_on_launch = true
 
-  tags = {
-    Name = "${var.ENVIRONMENT}-public-subnet-1"
-  }
+  tags = { Name = "${var.environment}-public-subnet-1" }
 }
 
-resource "aws_subnet" "blogging_vpc_public_subnet_2" {
+resource "aws_subnet" "public_2" {
   vpc_id                  = aws_vpc.blogging_vpc.id
-  cidr_block              = var.BLOGGING_VPC_PUBLIC_SUBNET2_CIDR_BLOCK
+  cidr_block              = var.blogging_vpc_public_subnet2_cidr_block
   availability_zone       = data.aws_availability_zones.available.names[1]
   map_public_ip_on_launch = true
 
-  tags = {
-    Name = "${var.ENVIRONMENT}-public-subnet-2"
-  }
+  tags = { Name = "${var.environment}-public-subnet-2" }
 }
 
-# -------------------------
-# PRIVATE SUBNETS
-# -------------------------
-
-resource "aws_subnet" "blogging_vpc_private_subnet_1" {
+resource "aws_subnet" "private_1" {
   vpc_id            = aws_vpc.blogging_vpc.id
-  cidr_block        = var.BLOGGING_VPC_PRIVATE_SUBNET1_CIDR_BLOCK
+  cidr_block        = var.blogging_vpc_private_subnet1_cidr_block
   availability_zone = data.aws_availability_zones.available.names[0]
 
-  tags = {
-    Name = "${var.ENVIRONMENT}-private-subnet-1"
-  }
+  tags = { Name = "${var.environment}-private-subnet-1" }
 }
 
-resource "aws_subnet" "blogging_vpc_private_subnet_2" {
+resource "aws_subnet" "private_2" {
   vpc_id            = aws_vpc.blogging_vpc.id
-  cidr_block        = var.BLOGGING_VPC_PRIVATE_SUBNET2_CIDR_BLOCK
+  cidr_block        = var.blogging_vpc_private_subnet2_cidr_block
   availability_zone = data.aws_availability_zones.available.names[1]
 
-  tags = {
-    Name = "${var.ENVIRONMENT}-private-subnet-2"
-  }
+  tags = { Name = "${var.environment}-private-subnet-2" }
 }
 
-# -------------------------
-# INTERNET GATEWAY
-# -------------------------
-
-resource "aws_internet_gateway" "blogging_igw" {
+resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.blogging_vpc.id
 
-  tags = {
-    Name = "${var.ENVIRONMENT}-igw"
-  }
+  tags = { Name = "${var.environment}-igw" }
 }
 
-# -------------------------
-# NAT GATEWAY + EIP
-# -------------------------
-
-resource "aws_eip" "blogging_eip" {
+resource "aws_eip" "nat_eip" {
   vpc = true
-
-  depends_on = [aws_internet_gateway.blogging_igw]
+  depends_on = [aws_internet_gateway.igw]
 }
 
-resource "aws_nat_gateway" "blogging_nat_gw" {
-  allocation_id = aws_eip.blogging_eip.id
-  subnet_id     = aws_subnet.blogging_vpc_public_subnet_1.id
-
-  depends_on = [aws_internet_gateway.blogging_igw]
-
-  tags = {
-    Name = "${var.ENVIRONMENT}-nat-gw"
-  }
+resource "aws_nat_gateway" "nat" {
+  allocation_id = aws_eip.nat_eip.id
+  subnet_id     = aws_subnet.public_1.id
+  depends_on    = [aws_internet_gateway.igw]
+  tags = { Name = "${var.environment}-nat-gw" }
 }
-
-# -------------------------
-# ROUTE TABLES
-# -------------------------
 
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.blogging_vpc.id
-
   route {
     cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.blogging_igw.id
+    gateway_id = aws_internet_gateway.igw.id
   }
-
-  tags = {
-    Name = "${var.ENVIRONMENT}-public-rt"
-  }
+  tags = { Name = "${var.environment}-public-rt" }
+}
+resource "aws_route_table_association" "public_1" {
+  subnet_id      = aws_subnet.public_1.id
+  route_table_id = aws_route_table.public.id
+}
+resource "aws_route_table_association" "public_2" {
+  subnet_id      = aws_subnet.public_2.id
+  route_table_id = aws_route_table.public.id
 }
 
 resource "aws_route_table" "private" {
   vpc_id = aws_vpc.blogging_vpc.id
-
   route {
-    cidr_block = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.blogging_nat_gw.id
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.nat.id
   }
-
-  tags = {
-    Name = "${var.ENVIRONMENT}-private-rt"
-  }
+  tags = { Name = "${var.environment}-private-rt" }
 }
-
-# -------------------------
-# ROUTE TABLE ASSOCIATIONS
-# -------------------------
-
-resource "aws_route_table_association" "public_1" {
-  subnet_id      = aws_subnet.blogging_vpc_public_subnet_1.id
-  route_table_id = aws_route_table.public.id
-}
-
-resource "aws_route_table_association" "public_2" {
-  subnet_id      = aws_subnet.blogging_vpc_public_subnet_2.id
-  route_table_id = aws_route_table.public.id
-}
-
 resource "aws_route_table_association" "private_1" {
-  subnet_id      = aws_subnet.blogging_vpc_private_subnet_1.id
+  subnet_id      = aws_subnet.private_1.id
   route_table_id = aws_route_table.private.id
 }
-
 resource "aws_route_table_association" "private_2" {
-  subnet_id      = aws_subnet.blogging_vpc_private_subnet_2.id
+  subnet_id      = aws_subnet.private_2.id
   route_table_id = aws_route_table.private.id
 }
 
-# -------------------------
-# OUTPUTS
-# -------------------------
+output "public_subnets" {
+  value = [aws_subnet.public_1.id, aws_subnet.public_2.id]
+}
+
+output "private_subnets" {
+  value = [aws_subnet.private_1.id, aws_subnet.private_2.id]
+}
 
 output "vpc_id" {
   value = aws_vpc.blogging_vpc.id
-}
-
-output "public_subnet1_id" {
-  value = aws_subnet.blogging_vpc_public_subnet_1.id
-}
-
-output "public_subnet2_id" {
-  value = aws_subnet.blogging_vpc_public_subnet_2.id
-}
-
-output "private_subnet1_id" {
-  value = aws_subnet.blogging_vpc_private_subnet_1.id
-}
-
-output "private_subnet2_id" {
-  value = aws_subnet.blogging_vpc_private_subnet_2.id
-}t_2.id
 }
