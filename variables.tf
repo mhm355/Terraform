@@ -58,3 +58,7 @@ variable "node_group_max_size" {
   type    = number
   default = 2
 }
+variable "instance_type" {
+  type    = string
+  default = "t3.micro"
+}
