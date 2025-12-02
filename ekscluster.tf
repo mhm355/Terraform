@@ -35,7 +35,11 @@ resource "aws_eks_node_group" "blogging_nodegroup" {
   ]
 
   instance_types = var.instance_types
- 
+
+  remote_access {
+    ec2_ssh_key               = var.ssh_key_name
+    source_security_group_ids = [aws_security_group.blogging_node_sg.id]
+  }
 
   scaling_config {
     desired_size = var.node_group_desired_size
